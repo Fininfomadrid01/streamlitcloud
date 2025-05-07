@@ -1,1 +1,1 @@
-{"errorMessage": "Unable to import module 'scraper_lambda': cannot import name 'parse_tables_from_html' from 'scraper.meff_scraper' (/var/task/scraper/meff_scraper.py)", "errorType": "Runtime.ImportModuleError", "requestId": "", "stackTrace": []}
+{"errorMessage": "Unable to import module 'scraper_lambda': No module named 'scraper.scrape_all_dates_full'", "errorType": "Runtime.ImportModuleError", "requestId": "", "stackTrace": []}
