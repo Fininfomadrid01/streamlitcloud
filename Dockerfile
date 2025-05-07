@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la aplicación
 COPY app/ ./app/
+COPY output/ ./output/
 
 # Exponer el puerto que usará Streamlit
 EXPOSE 8501
