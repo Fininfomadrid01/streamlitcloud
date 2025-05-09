@@ -142,21 +142,6 @@ resource "aws_lambda_function" "scraper_v2" {
   }
 }
 
-resource "aws_lambda_function" "scraper_v2" {
-  function_name = "dev-scraper-lambda-v2"
-  package_type  = "Image"
-  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/dev-scraper-lambda:latest"
-  role          = aws_iam_role.lambda_exec.arn
-  timeout       = 120
-  memory_size   = 512
-
-  environment {
-    variables = {
-      RAW_TABLE_NAME = aws_dynamodb_table.raw_prices.name
-    }
-  }
-}
-
 ############################################################
 # 4) Event Source Mapping: Stream de RawPrices → iv_calc Lambda
 ############################################################

@@ -248,3 +248,131 @@ aws iam put-user-policy --user-name sam-deploy-user --policy-name AllowGetSciPyL
    aws iam attach-user-policy `
      --user-name sam-deploy-user `
      --policy-arn arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess
+
+
+
+
+   aws ecr get-login-password --region us-east-1 \
+     | docker login --username AWS --password-stdin 797161732660-east-1.amazonaws.com
+
+
+
+
+   docker tag local-scraper:latest \
+     797161732660.dkr.ecr.us-east-1.amazonaws.com/${ENVIRONMENT}-scraper-lambda:latest
+
+   docker push 797161732660.dkr.ecr.us-east-1.amazonaws.com/${ENVIRONMENT}-scraper-lambda:latest
+
+
+
+
+
+
+Resumen de servicios y recursos desplegados
+Repositorio ECR:
+iv-smile-app
+App Runner Service:
+iv-smile-service
+Bucket S3:
+iv-smile-data
+Tabla DynamoDB (metadatos):
+iv-smile-metadata
+Tabla DynamoDB (precios raw):
+dev-raw-prices
+Tabla DynamoDB (volatilidades):
+dev-implied-vols
+Lambda Scraper:
+dev-scraper-lambda
+Lambda IV Calc:
+dev-iv-lambda
+Lambda API:
+dev-api-lambda
+Rol IAM para Lambda:
+dev-lambda-exec
+Regla CloudWatch para ejecución diaria:
+dev-daily-scraper
+Estos son los principales recursos y servicios que tienes activos y gestionados por Terraform en tu entorno AWS.
+¿Quieres el ARN de alguno, la URL de la API, o necesitas detalles de algún recurso en particular?
+
+
+
+
+
+
+
+
+elación y función de cada recurso
+1. Repositorio ECR (iv-smile-app)
+Función:
+Almacena las imágenes Docker de tus aplicaciones (por ejemplo, el código de las Lambdas y de la app Streamlit).
+Relación:
+Las funciones Lambda y App Runner obtienen sus imágenes desde aquí para ejecutarse.
+2. App Runner Service (iv-smile-service)
+Función:
+Despliega y ejecuta tu aplicación web (por ejemplo, la app Streamlit) de forma pública y gestionada.
+Relación:
+Usa la imagen almacenada en ECR para lanzar la app. Puede consumir datos de la API expuesta por Lambda.
+3. Bucket S3 (iv-smile-data)
+Función:
+Almacena archivos de datos, backups o resultados intermedios (por ejemplo, CSVs, logs, etc.).
+Relación:
+Puede ser usado por tus Lambdas o la app para leer/escribir datos adicionales.
+4. Tablas DynamoDB
+iv-smile-metadata (metadatos):
+Guarda información de control, configuraciones o metadatos de tu sistema.
+dev-raw-prices (precios raw):
+Almacena los datos crudos obtenidos por el scraper (futuros y opciones).
+dev-implied-vols (volatilidades):
+Guarda los resultados del cálculo de volatilidad implícita (IV) a partir de los datos raw.
+5. Lambda Scraper (dev-scraper-lambda)
+Función:
+Realiza el scraping de datos de futuros y opciones usando BeautifulSoup.
+Relación:
+Guarda los datos obtenidos en la tabla DynamoDB dev-raw-prices.
+Se ejecuta automáticamente cada día gracias a la regla de CloudWatch.
+6. Lambda IV Calc (dev-iv-lambda)
+Función:
+Calcula la volatilidad implícita (IV) a partir de los datos crudos de la tabla dev-raw-prices.
+Relación:
+Se activa automáticamente cuando hay nuevos datos en dev-raw-prices (por un stream/evento de DynamoDB).
+Guarda los resultados en la tabla dev-implied-vols.
+7. Lambda API (dev-api-lambda)
+Función:
+Expone una API (vía API Gateway) para consultar los datos almacenados en DynamoDB (futuros, opciones, IV, etc.).
+Relación:
+Permite que la app Streamlit (o cualquier cliente) acceda a los datos procesados.
+8. Rol IAM para Lambda (dev-lambda-exec)
+Función:
+Permite que las funciones Lambda tengan permisos para acceder a DynamoDB, ECR, CloudWatch, etc.
+9. Regla CloudWatch (dev-daily-scraper)
+Función:
+Programa la ejecución automática diaria de la Lambda Scraper.
+Resumen visual de la relación
+CloudWatch Event → Ejecuta diariamente la Lambda Scraper
+Lambda Scraper → Guarda datos en DynamoDB (dev-raw-prices)
+DynamoDB Stream → Activa la Lambda IV Calc cuando hay nuevos datos
+Lambda IV Calc → Calcula IV y guarda en DynamoDB (dev-implied-vols)
+Lambda API → Expone los datos de DynamoDB vía API Gateway
+App Runner (Streamlit) → Consume la API para mostrar los datos al usuario
+ECR → Almacena las imágenes Docker usadas por Lambda y App Runner
+S3 → Almacena archivos adicionales si es necesario
+¿Te gustaría un diagrama visual, una explicación más detallada de algún recurso, o ayuda para consultar los datos en alguno de estos servicios?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
