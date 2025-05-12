@@ -57,6 +57,11 @@ def lambda_handler(event, context):
             'strike': Decimal(str(strike)),
             'iv': Decimal(str(iv))
         }
+        # Copiar el campo 'Ant.' si existe en el registro original
+        for ant_key in ['Ant.', 'ant', 'ANT', 'ant.', 'ANT.']:
+            if ant_key in new_img:
+                item['ant'] = Decimal(str(new_img[ant_key]['N'])) if 'N' in new_img[ant_key] else new_img[ant_key]['S']
+                break
         iv_tab.put_item(Item=item)
 
     return {'statusCode': 200, 'body': json.dumps({'message': 'IV calculada y guardada'})} 
