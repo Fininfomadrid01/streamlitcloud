@@ -38,48 +38,76 @@ opciones_df = cargar_opciones()
 iv_df = cargar_iv()
 futuros_df = cargar_futuros()
 
-st.header("Futuros disponibles")
-st.dataframe(futuros_df)
+# Normaliza los tipos y formatos antes del merge
+opciones_df['strike'] = opciones_df['strike'].astype(float)
+iv_df['strike'] = iv_df['strike'].astype(float)
+opciones_df['type'] = opciones_df['type'].replace({'calls': 'call', 'puts': 'put'})
+iv_df['type'] = iv_df['type'].replace({'calls': 'call', 'puts': 'put'})
+opciones_df['date'] = opciones_df['date'].astype(str)
+iv_df['date'] = iv_df['date'].astype(str)
+opciones_df['scrape_date'] = opciones_df['scrape_date'].astype(str)
+iv_df['scrape_date'] = iv_df['scrape_date'].astype(str)
 
+st.title("Volatilidad Implícita – Smile de Opciones y Futuros")
+st.markdown("Visualiza y explora históricos de opciones, futuros e IV del Mini Ibex. Selecciona la fecha de scraping para ver snapshots diarios y descarga los datos en CSV.")
+
+# --- Selector global de fecha de scraping ---
+fechas_scraping = sorted(opciones_df['scrape_date'].unique())
+fecha_sel = st.selectbox("Selecciona fecha de scraping (snapshot diario)", fechas_scraping)
+
+# --- FUTUROS ---
+st.header("Datos de FUTUROS estáticos")
+futuros_filtrados = futuros_df[futuros_df['scrape_date'] == fecha_sel].copy()
+futuros_filtrados['VENCIMIENTO'] = pd.to_datetime(futuros_filtrados['date'], errors='coerce').dt.strftime('%d %b. %Y')
+futuros_filtrados['ANT.'] = futuros_filtrados['last_price'].map('{:,.2f}'.format)
+st.dataframe(futuros_filtrados[['VENCIMIENTO', 'ANT.']])
+
+# --- OPCIONES ---
 st.header("Opciones (CALL y PUT) con toda la información e IV")
-# Unir opciones y IV por date, strike y type
-opciones_iv = opciones_df.merge(
-    iv_df[['date', 'strike', 'type', 'iv']],
+opciones_filtradas = opciones_df[opciones_df['scrape_date'] == fecha_sel].copy()
+iv_filtrada = iv_df[iv_df['scrape_date'] == fecha_sel].copy()
+
+# Haz el merge para añadir la columna 'iv'
+opciones_filtradas = opciones_filtradas.merge(
+    iv_filtrada[['date', 'strike', 'type', 'iv']],
     on=['date', 'strike', 'type'],
     how='left'
 )
-# Determinar columnas a mostrar
-columnas_opciones = ['date', 'type', 'strike', 'price', 'iv']
-for col in ['volume', 'volumen', 'last', 'ultimo']:
-    if col in opciones_iv.columns:
-        columnas_opciones.append(col)
-st.dataframe(opciones_iv[columnas_opciones])
 
+# Formatea columnas
+opciones_filtradas['VENCIMIENTO'] = pd.to_datetime(opciones_filtradas['date'], errors='coerce').dt.strftime('%d %b. %Y')
+opciones_filtradas['STRIKE'] = opciones_filtradas['strike'].map('{:,.0f}'.format)
+opciones_filtradas['PRECIO'] = opciones_filtradas['price'].map('{:,.2f}'.format)
+
+st.dataframe(opciones_filtradas[['VENCIMIENTO', 'type', 'STRIKE', 'PRECIO', 'iv']])
+
+# --- SMILE DE VOLATILIDAD ---
 st.header("Smile de volatilidad y datos por fecha de vencimiento")
-fechas_vencimiento = sorted(opciones_iv['date'].unique())
+fechas_vencimiento = sorted(opciones_filtradas['date'].unique())
 fecha_venc_sel = st.selectbox("Selecciona fecha de vencimiento", fechas_vencimiento)
-opciones_fecha = opciones_iv[opciones_iv['date'] == fecha_venc_sel]
-
+opciones_fecha = opciones_filtradas[opciones_filtradas['date'] == fecha_venc_sel]
 if not opciones_fecha.empty:
-    fig = px.line(
-        opciones_fecha,
-        x='strike',
-        y='iv',
-        color='type',
-        markers=True,
-        title=f"Smile de Volatilidad Implícita para {fecha_venc_sel}"
-    )
-    st.plotly_chart(fig, key="smile_selector")
-
+    fig = px.line(opciones_fecha, x='strike', y='iv', color='type', markers=True,
+                  title=f"Smile de Volatilidad Implícita para {fecha_venc_sel}")
+    st.plotly_chart(fig)
     st.subheader("Opciones CALL para la fecha seleccionada")
-    st.dataframe(opciones_fecha[opciones_fecha['type'] == 'call'][columnas_opciones])
-
+    st.dataframe(opciones_fecha[opciones_fecha['type'] == 'call'][['VENCIMIENTO', 'STRIKE', 'PRECIO', 'iv']])
     st.subheader("Opciones PUT para la fecha seleccionada")
-    st.dataframe(opciones_fecha[opciones_fecha['type'] == 'put'][columnas_opciones])
+    st.dataframe(opciones_fecha[opciones_fecha['type'] == 'put'][['VENCIMIENTO', 'STRIKE', 'PRECIO', 'iv']])
 else:
-    st.warning("No hay datos de opciones para la fecha seleccionada.")
+    st.info("No hay datos de opciones para la fecha seleccionada.")
 
-# El resto de funcionalidades avanzadas pueden ir aquí o en tabs adicionales
+# --- IV (más recientes) ---
+st.header("IV (más recientes)")
+iv_filtrada = iv_df[iv_df['scrape_date'] == fecha_sel].copy()
+st.dataframe(iv_filtrada[['strike', 'date', 'iv', 'type', 'scrape_date']])
+
+# --- DESCARGA DE DATOS ---
+st.header("Descarga de datos filtrados")
+st.markdown("Puedes descargar los datos filtrados de opciones, IV y futuros en formato CSV.")
+st.download_button("Descargar opciones filtradas (CSV)", opciones_filtradas.to_csv(index=False), file_name="opciones_filtradas.csv", mime="text/csv")
+st.download_button("Descargar IV filtrada (CSV)", iv_filtrada.to_csv(index=False), file_name="iv_filtrada.csv", mime="text/csv")
+st.download_button("Descargar futuros filtrados (CSV)", futuros_filtrados.to_csv(index=False), file_name="futuros_filtrados.csv", mime="text/csv")
 
 # --- TABS PRINCIPALES ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -102,8 +130,8 @@ with tab1:
         futuros_actual = futuros_df[futuros_df['scrape_date'] == fecha_scraping_actual] if 'scrape_date' in futuros_df.columns else futuros_df
         # Unir opciones y IV por date, strike y type para mostrar IV en las tablas de opciones
         opciones_actual_iv = opciones_actual.merge(
-            iv_actual[['date', 'strike', 'type', 'iv']],
-            on=['date', 'strike', 'type'],
+            iv_actual[['date', 'strike', 'type', 'scrape_date', 'iv']],
+            on=['date', 'strike', 'type', 'scrape_date'],
             how='left'
         )
         # Determinar columnas a mostrar
@@ -156,8 +184,8 @@ with tab2:
         futuros_df_filtrado = futuros_df
     # Unir opciones y IV por date, strike y type para mostrar IV en las tablas de opciones
     opciones_iv = opciones_df_filtrado.merge(
-        iv_df_filtrado[['date', 'strike', 'type', 'iv']],
-        on=['date', 'strike', 'type'],
+        iv_df_filtrado[['date', 'strike', 'type', 'scrape_date', 'iv']],
+        on=['date', 'strike', 'type', 'scrape_date'],
         how='left'
     )
     columnas_opciones = ['strike', 'price', 'iv']
