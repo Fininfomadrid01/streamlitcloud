@@ -2,6 +2,9 @@ import mibian
 import pandas as pd
 from datetime import datetime
 from typing import Dict, Tuple
+import numpy as np
+from scipy.stats import norm
+from scipy.optimize import brentq
 
 # Map abreviaturas españolas a números de mes
 SPANISH_MONTHS = {
@@ -30,6 +33,21 @@ def parse_spanish_date(date_str: str) -> datetime:
         raise ValueError(f"Mes inválido en fecha: {date_str}")
     return datetime(year, month, day)
 
+def black_scholes_price(S, K, T, r, sigma, option_type):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    if option_type == 'call':
+        return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+    else:
+        return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+
+def implied_volatility(option_price, S, K, T, r, option_type):
+    def objective(sigma):
+        return black_scholes_price(S, K, T, r, sigma, option_type) - option_price
+    try:
+        return brentq(objective, 1e-6, 5, maxiter=1000)
+    except Exception:
+        return None
 
 def add_implied_volatility(
     df: pd.DataFrame,
@@ -40,10 +58,9 @@ def add_implied_volatility(
     """
     Añade las columnas 'IV_raw' e 'IV' al DataFrame de Calls o Puts.
     option_type: 'call' o 'put'.
-    - IV_raw: valor bruto devuelto por MibianLib (puede alcanzar 500).
-    - IV: mismo valor, pero convertido a None si IV_raw >= 500.
+    - IV_raw: valor bruto devuelto por el solver (puede ser None si no converge).
+    - IV: mismo valor, pero convertido a None si es >= 5 (500% anualizada, outlier numérico).
     """
-    # Detectar columnas de Strike y ANT en el DataFrame
     cols = df.columns
     strike_cols = [c for c in cols if 'STRIKE' in c.upper()]
     ant_cols    = [c for c in cols if 'ANT'    in c.upper()]
@@ -54,8 +71,9 @@ def add_implied_volatility(
 
     # Días hasta vencimiento
     days = max((expiry_dt - datetime.now()).days, 1)  # al menos 1 día
+    T = days / 365.0
+    r = 0.0
 
-    # Arrays para guardar calcs
     iv_raw_list = []
     iv_list     = []
 
@@ -72,30 +90,22 @@ def add_implied_volatility(
             else:
                 price = float(str(raw_price).replace('.', '').replace(',', '.'))
 
-            # Calcular volatilidad implícita con Black-Scholes y r=0
-            if option_type.lower() == 'call':
-                bs = mibian.BS([future_price, strike, 0, days], callPrice=price)
+            # Solo calcular si los precios son positivos y strike > 0
+            if price > 0 and future_price > 0 and strike > 0 and T > 0:
+                iv = implied_volatility(price, future_price, strike, T, r, option_type.lower())
             else:
-                bs = mibian.BS([future_price, strike, 0, days], putPrice=price)
-
-            # Obtener IV bruto y añadir debug
-            iv = bs.impliedVolatility
+                iv = None
             iv_raw_list.append(iv)
-            print(f"[IV DEBUG] strike={strike}, price={price}, future={future_price}, days={days}, iv_raw={iv}")
-
-            # Filtrar IV final: None si el solver llegó a 500
-            iv_list.append(iv if iv < 500 else None)
-
-        except Exception:
-            # En caso de error en conversión o en MibianLib, guardo None
+            print(f"[IV DEBUG] strike={strike}, price={price}, future={future_price}, days={days}, T={T:.4f}, iv_raw={iv}")
+            # Filtrar IV final: None si el solver devuelve un valor absurdo
+            iv_list.append(iv if (iv is not None and iv < 5) else None)
+        except Exception as e:
             iv_raw_list.append(None)
             iv_list.append(None)
 
-    # Construir DataFrame de salida con ambas columnas
     out = df.copy()
     out['IV_raw'] = iv_raw_list
     out['IV']     = iv_list
-    # Añadir columna con días hasta vencimiento para futura filtración
     out['Days']   = days
     return out
 
