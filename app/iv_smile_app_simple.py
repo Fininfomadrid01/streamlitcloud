@@ -34,9 +34,26 @@ def cargar_futuros():
         data = json.loads(data["body"])
     return pd.DataFrame(data)
 
-opciones_df = cargar_opciones()
-iv_df = cargar_iv()
-futuros_df = cargar_futuros()
+def limpia_y_normaliza_df(df):
+    df = df.copy()
+    # Elimina filas con 'Difer.' en columnas de tipo
+    for col in ['tipo', 'type']:
+        if col in df.columns:
+            df = df[~df[col].isin(['Difer.'])]
+    # Normaliza fechas
+    for col in ['date', 'vencimiento', 'scrape_date']:
+        if col in df.columns:
+            df.loc[:, col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d')
+            df = df[df[col].notnull()]
+    # Elimina valores None o 'None' en vencimientos
+    for col in ['date', 'vencimiento']:
+        if col in df.columns:
+            df = df[df[col].notnull() & (df[col] != 'None')]
+    return df
+
+opciones_df = limpia_y_normaliza_df(cargar_opciones())
+iv_df = limpia_y_normaliza_df(cargar_iv())
+futuros_df = limpia_y_normaliza_df(cargar_futuros())
 
 # Normaliza los tipos y formatos antes del merge
 opciones_df['strike'] = opciones_df['strike'].astype(float)
