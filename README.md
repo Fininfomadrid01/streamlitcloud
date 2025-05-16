@@ -21,3 +21,25 @@ Aplicación web para visualizar la volatilidad implícita de las opciones MINI I
   - [ ] Superficie de volatilidad
   - [ ] Terraform
   - [ ] Diagrama arquitectura 
+
+## Ejecución local
+
+Para ejecutar la app principal de Streamlit:
+
+```sh
+streamlit run app/iv_smile_app_v3.py
+```
+
+## Despliegue público
+
+La app está disponible públicamente en:
+
+https://iguazsmile.streamlit.app/
+
+## Despliegue en Streamlit Cloud
+
+- En el formulario de Streamlit Cloud, usa como "Main file path":
+  ```
+  app/iv_smile_app_v3.py
+  ```
+- Asegúrate de que todas las dependencias estén en `requirements.txt` en la raíz del repositorio. 
