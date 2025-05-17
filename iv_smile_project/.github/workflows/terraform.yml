@@ -1,0 +1,62 @@
+name: 'Terraform CI/CD'
+
+on:
+  push:
+    branches: [ 'main' ]
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v3
+
+      - name: 'Setup Terraform'
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.5.0'
+
+      - name: 'Debug TF_VARs'
+        env:
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
+        run: |
+          echo "DEBUG: TF_VAR_s3_bucket_name=$TF_VAR_s3_bucket_name"
+          echo "DEBUG: TF_VAR_dynamodb_table_name=$TF_VAR_dynamodb_table_name"
+
+      - name: 'Terraform Init'
+        env:
+          TF_VAR_s3_bucket_name:        ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name:   ${{ secrets.DYNAMODB_TABLE_NAME }}
+          TF_VAR_ecr_repo_name:         ${{ secrets.ECR_REPO_NAME }}
+          TF_VAR_app_runner_service_name: ${{ secrets.APP_RUNNER_SERVICE_NAME }}
+          AWS_ACCESS_KEY_ID:            ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY:        ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:                   ${{ secrets.AWS_REGION }}
+        run: terraform init -input=false
+
+      - name: 'Terraform Plan'
+        env:
+          TF_VAR_s3_bucket_name:        ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name:   ${{ secrets.DYNAMODB_TABLE_NAME }}
+          TF_VAR_ecr_repo_name:         ${{ secrets.ECR_REPO_NAME }}
+          TF_VAR_app_runner_service_name: ${{ secrets.APP_RUNNER_SERVICE_NAME }}
+          AWS_ACCESS_KEY_ID:            ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY:        ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:                   ${{ secrets.AWS_REGION }}
+        run: terraform plan -out=tfplan -input=false
+
+      - name: 'Terraform Apply'
+        if: github.ref == 'refs/heads/main'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
+        run: terraform apply -input=false -auto-approve tfplan 
