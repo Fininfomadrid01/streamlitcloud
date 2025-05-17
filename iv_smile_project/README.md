@@ -42,9 +42,9 @@ Se ha desarrollado una arquitectura serverless en AWS para la automatización de
 
 ### Scraping y Cálculo Automático
 - **EventBridge** lanza diariamente:
-  - **Lambda Scraper Opciones** (`cron(0 23 * * ? *)`)
-  - **Lambda Scraper Futuros** (`cron(0 23 * * ? *)`)
-  - **Lambda IV Calc** (`cron(20 23 * * ? *)`)
+  - **Lambda Scraper Opciones** (`cron(0 23 ? * MON-FRI *)`)
+  - **Lambda Scraper Futuros** (`cron(0 23 *? * MON-FRI *)`)
+  - **Lambda IV Calc** (`cron(20 23 * ? * MON-FRI *)`)
 - Cada Lambda guarda los datos en **DynamoDB** con la fecha de scraping (`scrape_date`).
 
 ### Exposición de Datos vía API
@@ -55,7 +55,7 @@ Se ha desarrollado una arquitectura serverless en AWS para la automatización de
 - **Lambda API Embudo** procesa las peticiones y consulta DynamoDB.
 
 ### Visualización
-- **App Streamlit** ([https://andresiguaz.streamlit.app/](https://andresiguaz.streamlit.app/)) permite:
+- **App Streamlit** **App Streamlit** https://iguazsmile.streamlit.app/  permite:
   - Seleccionar la fecha de scraping.
   - Visualizar tablas y gráficos de opciones, futuros e IV.
   - Analizar la superficie de volatilidad y otros indicadores.
@@ -82,9 +82,9 @@ Se ha desarrollado una arquitectura serverless en AWS para la automatización de
 
 | Trigger/EventBridge           | Cron/Regla                | Lambda destino                | Descripción                                      |
 |------------------------------|---------------------------|-------------------------------|--------------------------------------------------|
-| Scraper de futuros diario    | `cron(0 23 * * ? *)`      | scraper_futuros_lambda        | Scraping de futuros cada día a las 23:00 UTC     |
-| Scraper de opciones diario   | `cron(0 23 * * ? *)`      | dev-scraper-lambda-v2         | Scraping de opciones cada día a las 23:00 UTC    |
-| Cálculo de IV diario         | `cron(20 23 * * ? *)`     | iv_calc_lambda                | Cálculo de IV a las 23:20 UTC                    |
+| Scraper de futuros diario    | `cron(0 23 ? * MON-FRI *)`      | scraper_futuros_lambda        | Scraping de futuros cada día de lunes a viernes a las 23:00 UTC     |
+| Scraper de opciones diario   | `cron(0 23 ? * MON-FRI *))`      | dev-scraper-lambda-v2         | Scraping de opciones cada día de lunes a viernes a las 23:00 UTC    |
+| Cálculo de IV diario         | `cron(20 23 * ? * MON-FRI *))`     | iv_calc_lambda                | Cálculo de IV cada día de lunes a viernea las 23:20 UTC                    |
 
 ### Endpoints (URLs)
 
@@ -99,7 +99,7 @@ Se ha desarrollado una arquitectura serverless en AWS para la automatización de
 
 ## Contacto y Créditos
 - Responsable técnico: Andrés Iguaz
-- Repositorio: https://github.com/Fininfomadrid01/streamlitcloud
+- Repositorio: https://github.com/Fininfomadrid01/streamlitcloud (En abierto para que puedas acceder)
 - Fecha: 17/05/2025 
 
 # Práctica Tecnologías Cloud - mIA-13
@@ -125,7 +125,6 @@ Aplicación web para visualizar la volatilidad implícita de las opciones MINI I
   - [x ] Superficie de volatilidad
   - [x ] Terraform
   - [x ] Diagrama arquitectura 
-
 
 
 
